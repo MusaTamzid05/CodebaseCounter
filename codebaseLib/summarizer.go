@@ -1,18 +1,24 @@
 package codebaseLib
 
 import (
+	"bufio"
 	"log"
+	"os"
 	"strings"
 )
 
 type Summarizer struct {
-	path       string
-	fileExtMap map[string]int
+	path           string
+	fileExtMap     map[string]int
+	lineInfo       map[string]int
+	totalCodeCount int
 }
 
 func NewSummarizer(path string) *Summarizer {
 	summarizer := Summarizer{path: path}
 	summarizer.fileExtMap = make(map[string]int)
+	summarizer.lineInfo = make(map[string]int)
+	summarizer.totalCodeCount = 0
 	return &summarizer
 }
 
@@ -27,8 +33,15 @@ func (s *Summarizer) Run() {
 	for _, path := range paths {
 		data := strings.Split(path, "/")
 		s.updateExts(data[len(data)-1])
+
+		err = s.loadLineInfo(path)
+
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
+	s.showCodeLineInfo()
 	s.showLanguage()
 }
 
@@ -61,4 +74,44 @@ func (s *Summarizer) showLanguage() {
 		}
 	}
 
+}
+
+func (s *Summarizer) loadLineInfo(path string) error {
+
+	file, err := os.Open(path)
+
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	count := 0
+	for scanner.Scan() {
+
+		line := scanner.Text()
+		line = strings.Trim(line, " ")
+
+		if line == "" {
+			continue
+		}
+
+		count = count + 1
+
+	}
+
+	s.lineInfo[path] = count
+	s.totalCodeCount = s.totalCodeCount + count
+
+	return nil
+
+}
+
+func (s *Summarizer) showCodeLineInfo() {
+
+	for path, count := range s.lineInfo {
+		log.Printf("%s = %d\n", path, count)
+	}
+	log.Printf("Total count : %d\n", s.totalCodeCount)
 }
